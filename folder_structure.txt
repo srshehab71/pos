@@ -1,0 +1,137 @@
+Folder PATH listing for volume XAMPP
+Volume serial number is A8F0-270A
+X:.
+|   folder_structure.txt
+|   index.php
+|   login_process.php
+|   logout.php
+|   payment_required.php
+|   renew_account.php
+|   reset.php
+|   super_reset.php
+|   
++---admin
+|   |   add_sr.php
+|   |   categories.php
+|   |   customers.php
+|   |   customer_due.php
+|   |   dashboard.php
+|   |   delete_payment.php
+|   |   delete_sale.php
+|   |   edit_payment.php
+|   |   edit_purchase.php
+|   |   edit_sale.php
+|   |   expired_products.php
+|   |   get_purchase_details.php
+|   |   get_transaction_history.php
+|   |   global_sales.php
+|   |   low_stock_report.php
+|   |   print_all_invoices.php
+|   |   process_edit_payment.php
+|   |   process_edit_purchase.php
+|   |   process_edit_sale.php
+|   |   process_global_sale.php
+|   |   process_purchase.php
+|   |   process_receive_purchase.php
+|   |   products.php
+|   |   product_groups.php
+|   |   purchase.php
+|   |   purchase_list.php
+|   |   receive_purchase.php
+|   |   reports.php
+|   |   sales.php
+|   |   sales_summary.php
+|   |   settings.php
+|   |   suppliers.php
+|   |   
+|   \---includes
+|           footer.php
+|           header.php
+|           
++---assets
+|   \---uploads
+|       +---logos
+|       +---superadmin
+|       |       admin_4_1787263286.JPG
+|       |       
+|       \---users
+|               admin_pic_1_1787074935.jpeg
+|               admin_pic_1_1787244969.jpeg
+|               admin_pic_4_1787390476.jpg
+|               admin_pic_5_1787975247.jpg
+|               
++---bkash
+|       bkash_config.php
+|       create_payment.php
+|       execute_payment.php
+|       
++---config
+|       bkash_config.php
+|       db.php
+|       
++---includes
+|       footer.php
+|       header.php
+|       
++---sr
+|   |   dashboard.php
+|   |   delete_payment.php
+|   |   delete_sale.php
+|   |   due_collection.php
+|   |   edit_payment.php
+|   |   edit_sale.php
+|   |   get_customer.php
+|   |   get_transaction_history.php
+|   |   new_sale.php
+|   |   print_invoice.php
+|   |   process_due_collection.php
+|   |   process_edit_payment.php
+|   |   process_edit_sale.php
+|   |   process_sale.php
+|   |   products.php
+|   |   sales_history.php
+|   |   sidebar.php
+|   |   
+|   \---includes
+|           footer.php
+|           header.php
+|           
+\---super_admin
+    |   add_godown.php
+    |   backup.php
+    |   bkash_config.php
+    |   bkash_setup.php
+    |   cron_backup.php
+    |   edit_godown.php
+    |   impersonate.php
+    |   index.php
+    |   manage_godowns.php
+    |   notice.php
+    |   notice_stop.php
+    |   packages.php
+    |   payment_required.php
+    |   recharge_process.php
+    |   revenue.php
+    |   settings.php
+    |   stop_impersonate.php
+    |   test_backup.php
+    |   transactions.php
+    |   
+    +---backup_database
+    |       manual_backup_2026-08-19_16-27-25.sql
+    |       manual_backup_2026-08-19_16-44-27.sql
+    |       manual_backup_2026-08-19_16-49-32.sql
+    |       
+    +---includes
+    |       footer.php
+    |       header.php
+    |       
+    \---mailer
+            DSNConfigurator.php
+            Exception.php
+            OAuth.php
+            OAuthTokenProvider.php
+            PHPMailer.php
+            POP3.php
+            SMTP.php
+            
