@@ -19,18 +19,23 @@ if (isset($_GET['id'])) {
         $check->execute([$sale_id, $godown_id]);
         if ($check->rowCount() == 0) { throw new Exception("অনুমতি নেই!"); }
 
-        // ২. স্টক ফেরত দেওয়া (Sale Items থেকে স্টক বের করে আপডেট করা)
-        $items_stmt = $conn->prepare("SELECT product_id, variant_id, qty FROM sale_items WHERE sale_id = ?");
+        // ২. স্টক এবং ব্যাচ ফেরত দেওয়া
+        $items_stmt = $conn->prepare("SELECT product_id, variant_id, purchase_item_id, qty FROM sale_items WHERE sale_id = ?");
         $items_stmt->execute([$sale_id]);
         $items = $items_stmt->fetchAll(PDO::FETCH_ASSOC);
 
         foreach ($items as $item) {
+            // ২.১ ব্যাচ স্টক ফেরত দেওয়া (Purchase Items টেবিলে)
+            if ($item['purchase_item_id']) {
+                $conn->prepare("UPDATE purchase_items SET remaining_qty = remaining_qty + ? WHERE id = ?")
+                     ->execute([$item['qty'], $item['purchase_item_id']]);
+            }
+
+            // ২.২ মেইন স্টক ফেরত দেওয়া (Products/Variants টেবিলে)
             if ($item['variant_id']) {
-                // ভেরিয়েন্ট প্রোডাক্ট স্টক আপডেট
                 $conn->prepare("UPDATE product_variants SET stock_qty = stock_qty + ? WHERE id = ?")
                      ->execute([$item['qty'], $item['variant_id']]);
             } else {
-                // মেইন প্রোডাক্ট স্টক আপডেট
                 $conn->prepare("UPDATE products SET stock_qty = stock_qty + ? WHERE id = ?")
                      ->execute([$item['qty'], $item['product_id']]);
             }

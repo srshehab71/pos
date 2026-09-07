@@ -24,6 +24,12 @@ if ($range == '' && $search == '' && $sr_id == '' && $start_date == '') {
 }
 
 // ৩. রেঞ্জ অনুযায়ী তারিখ প্রসেস করা
+// যদি স্টার্ট ডেট ম্যানুয়ালি থাকে এবং রেঞ্জ যদি প্রি-সেট কোনো মান না হয়
+if ($start_date !== '' && $end_date !== '' && !isset($_GET['range_clicked'])) {
+    // এখানে কাস্টম ডেট প্রায়োরিটি পাবে, তাই রেঞ্জ খালি করে দিচ্ছি
+    $range = ''; 
+}
+
 if ($range === 'today') {
     $start_date = date('Y-m-d');
     $end_date = date('Y-m-d');
@@ -269,7 +275,8 @@ body {
 <!-- FILTER -->
 <div class="sr-card p-3 mb-4">
     <form method="GET" id="filterForm">
-    <input type="hidden" name="range" value="<?= htmlspecialchars($range) ?>">
+    <!-- রেঞ্জ ফিল্ডে ID যোগ করা হয়েছে -->
+<input type="hidden" name="range" id="rangeInput" value="<?= htmlspecialchars($range) ?>">
         <div class="row g-2 align-items-center">
             <!-- সার্চ ইনপুট (অটো সাবমিট হবে) -->
             <div class="col-md-3">
@@ -433,12 +440,21 @@ body {
 <script>
 function toggleDateFilter() {
     var x = document.getElementById("date-filter-box");
+    var rangeInput = document.getElementById("rangeInput");
+    
     if (x.style.display === "none") {
         x.style.display = "block";
+        // যখন ক্যালেন্ডার খুলবে, তখন রেঞ্জ ভ্যালু ক্লিয়ার করে দাও
+        rangeInput.value = ''; 
     } else {
         x.style.display = "none";
     }
 }
+
+// "ঠিক আছে" বাটনে ক্লিক করলে রেঞ্জ ইনপুট ক্লিয়ার নিশ্চিত করা
+document.querySelector('#date-filter-box button').addEventListener('click', function() {
+    document.getElementById("rangeInput").value = '';
+});
 </script>
 
 <?php include 'includes/footer.php'; ?>

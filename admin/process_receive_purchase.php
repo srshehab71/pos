@@ -26,17 +26,20 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
             if ($stock_diff != 0) {
                 if ($item['item_type'] == 'single') {
-                    $conn->prepare("UPDATE products SET stock_qty = stock_qty + ? WHERE id = ?")
-                         ->execute([$stock_diff, $item['product_id']]);
+                    // মেইন প্রোডাক্টের স্টক এবং সর্বশেষ কেনা/বেচা দাম আপডেট
+                    $conn->prepare("UPDATE products SET stock_qty = stock_qty + ?, purchase_price = ?, sell_price = ? WHERE id = ?")
+                         ->execute([$stock_diff, $item['purchase_price'], $item['sell_price'], $item['product_id']]);
                 } else {
-                    $conn->prepare("UPDATE product_variants SET stock_qty = stock_qty + ? WHERE id = ?")
-                         ->execute([$stock_diff, $item['product_id']]);
+                    // ভ্যারিয়েন্ট প্রোডাক্টের স্টক এবং সর্বশেষ কেনা/বেচা দাম আপডেট
+                    $conn->prepare("UPDATE product_variants SET stock_qty = stock_qty + ?, purchase_price = ?, sell_price = ? WHERE id = ?")
+                         ->execute([$stock_diff, $item['purchase_price'], $item['sell_price'], $item['product_id']]);
                 }
             }
 
             $total_received = $edited_prev + $current_now;
-            $conn->prepare("UPDATE purchase_items SET received_qty = ? WHERE id = ?")
-                 ->execute([$total_received, $item_db_id]);
+// এখানে received_qty এর সাথে remaining_qty ও আপডেট হবে
+$conn->prepare("UPDATE purchase_items SET received_qty = ?, remaining_qty = remaining_qty + ? WHERE id = ?")
+     ->execute([$total_received, $stock_diff, $item_db_id]);
 
             // স্ট্যাটাস লজিক চেক:
             if ($total_received > 0) {

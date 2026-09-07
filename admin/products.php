@@ -167,6 +167,16 @@ include 'includes/header.php';
                 </thead>
                 <tbody>
     <?php $sl = 1; foreach($products as $p): 
+
+// --- ১. মেইন প্রোডাক্টের ব্যাচ কুয়েরি (sell_price সহ) ---
+$batch_stmt = $conn->prepare("SELECT pi.id, pi.remaining_qty, pi.purchase_price, pi.sell_price, p.chalan_no 
+                             FROM purchase_items pi 
+                             LEFT JOIN purchases p ON pi.purchase_id = p.id 
+                             WHERE pi.product_id = ? AND pi.item_type = 'single' AND pi.remaining_qty > 0 
+                             ORDER BY pi.id ASC");
+$batch_stmt->execute([$p['id']]);
+$p_batches = $batch_stmt->fetchAll();
+
         $v_stmt = $conn->prepare("SELECT * FROM product_variants WHERE product_id = ?");
         $v_stmt->execute([$p['id']]);
         $variants = $v_stmt->fetchAll();
@@ -194,6 +204,16 @@ include 'includes/header.php';
         <td class="text-center" data-sort="<?= $grp_sl ?>_<?= $grp_id ?>_0"><div class="sl-badge"><?= $sl++ ?></div></td>
         <td data-sort="<?= $grp_name ?>_<?= $grp_id ?>_0">
             <div class="fw-bold text-dark mb-0"><?= $p['product_name'] ?></div>
+            <!-- ২. ব্যাচ লিস্ট ডিজাইন -->
+<?php if(!$has_variants && count($p_batches) > 0): ?>
+    <div class="mt-2 d-flex flex-wrap gap-1">
+        <?php foreach($p_batches as $pb): ?>
+            <span class="badge bg-light text-dark border shadow-sm" style="font-size: 10px;" title="চালান নং: <?= $pb['chalan_no'] ?>">
+                ব্যাচ নং-<?= $pb['id'] ?> (স্টক-<?= $pb['remaining_qty'] ?> টি) - কেনা৳<?= number_format($pb['purchase_price'], 0) ?>
+            </span>
+        <?php endforeach; ?>
+    </div>
+<?php endif; ?>
             <small class="text-muted">SKU: <?= $p['sku'] ?: 'N/A' ?></small>
         </td>
         <td data-sort="<?= $grp_cat ?>_<?= $grp_id ?>_0">
@@ -201,14 +221,19 @@ include 'includes/header.php';
             <span class="text-muted small"><i class="fas fa-user-friends me-1"></i><?= $p['group_name'] ?></span>
         </td>
         <td data-sort="<?= $grp_price ?>_<?= $grp_id ?>_0">
-            <?php if($has_variants): ?>
-                <span class="badge-soft badge-soft-success">Variable Pricing</span>
-            <?php else: ?>
-                <div class="small fw-bold">ক্রয়: ৳<?= number_format($p['purchase_price'], 0) ?></div>
-                <div class="text-success fw-bold">বিক্রয়: ৳<?= number_format($p['sell_price'], 0) ?></div>
-                <div class="margin-text">Margin: <?= round($margin, 1) ?>%</div>
-            <?php endif; ?>
-        </td>
+    <?php if($has_variants): ?>
+        <span class="badge-soft badge-soft-success">Variable Pricing</span>
+    <?php else: 
+        // রানিং ব্যাচ থেকে দাম নেওয়া
+        $r_purchase = (!empty($p_batches)) ? $p_batches[0]['purchase_price'] : $p['purchase_price'];
+        $r_sell = (!empty($p_batches)) ? $p_batches[0]['sell_price'] : $p['sell_price'];
+        $margin = ($r_purchase > 0) ? (($r_sell - $r_purchase) / $r_purchase) * 100 : 0;
+    ?>
+        <div class="small fw-bold text-primary">ক্রয়: ৳<?= number_format($r_purchase, 2) ?></div>
+        <div class="text-success fw-bold">বিক্রয়: ৳<?= number_format($r_sell, 2) ?></div>
+        <div class="margin-text">Margin: <?= round($margin, 1) ?>%</div>
+    <?php endif; ?>
+</td>
         <td class="text-center" data-sort="<?= $grp_stock ?>_<?= $grp_id ?>_0">
             <div class="h5 fw-bold mb-0"><?= $total_stock ?></div>
             <div class="inv-value mt-1">৳<?= number_format($total_value, 0) ?></div>
@@ -221,6 +246,14 @@ include 'includes/header.php';
 
     <?php if($has_variants): ?>
         <?php foreach($variants as $idx => $v): 
+        // --- ৩. ভেরিয়েন্ট ব্যাচ কুয়েরি (sell_price সহ) ---
+$v_batch_stmt = $conn->prepare("SELECT pi.id, pi.remaining_qty, pi.purchase_price, pi.sell_price, p.chalan_no 
+                               FROM purchase_items pi 
+                               LEFT JOIN purchases p ON pi.purchase_id = p.id 
+                               WHERE pi.product_id = ? AND pi.item_type = 'variant' AND pi.remaining_qty > 0 
+                               ORDER BY pi.id ASC");
+$v_batch_stmt->execute([$v['id']]);
+$v_batches = $v_batch_stmt->fetchAll();
             $v_idx = $idx + 1; 
             $v_margin = 0;
             if($v['purchase_price'] > 0) $v_margin = (($v['sell_price'] - $v['purchase_price']) / $v['purchase_price']) * 100;
@@ -229,14 +262,30 @@ include 'includes/header.php';
             <td class="text-center" data-sort="<?= $grp_sl ?>_<?= $grp_id ?>_<?= $v_idx ?>"></td> 
             <td data-sort="<?= $grp_name ?>_<?= $grp_id ?>_<?= $v_idx ?>" style="padding-left: 35px;">
                 <div class="text-dark mb-0" style="font-size: 13.5px;"><i class="fas fa-level-up-alt fa-rotate-90 me-2 text-muted"></i> <?= $v['variant_name'] ?></div>
+                <!-- ৪. ভেরিয়েন্ট ব্যাচ ডিজাইন -->
+<?php if(count($v_batches) > 0): ?>
+    <div class="mt-1 d-flex flex-wrap gap-1">
+        <?php foreach($v_batches as $vb): ?>
+            <span class="badge bg-white text-muted border" style="font-size: 9px; font-weight: normal;" title="চালান নং: <?= $vb['chalan_no'] ?>">
+                B#<?= $vb['id'] ?>: <?= $vb['remaining_qty'] ?> টি - ৳<?= $vb['purchase_price'] ?>
+            </span>
+        <?php endforeach; ?>
+    </div>
+<?php endif; ?>
                 <small class="text-muted" style="font-size: 10px;">SKU: <?= $v['sku'] ?></small>
             </td>
             <td data-sort="<?= $grp_cat ?>_<?= $grp_id ?>_<?= $v_idx ?>"><span class="text-muted small"><?= $p['cat_name'] ?> | <?= $p['group_name'] ?></span></td>
             <td data-sort="<?= $grp_price ?>_<?= $grp_id ?>_<?= $v_idx ?>">
-                <div class="small fw-bold">ক্রয়: ৳<?= number_format($v['purchase_price'], 0) ?></div>
-                <div class="text-success fw-bold">বিক্রয়: ৳<?= number_format($v['sell_price'], 0) ?></div>
-                <div class="margin-text">Margin: <?= round($v_margin, 1) ?>%</div>
-            </td>
+    <?php 
+        // ভেরিয়েন্ট রানিং ব্যাচ থেকে দাম নেওয়া
+        $vr_purchase = (!empty($v_batches)) ? $v_batches[0]['purchase_price'] : $v['purchase_price'];
+        $vr_sell = (!empty($v_batches)) ? $v_batches[0]['sell_price'] : $v['sell_price'];
+        $v_margin = ($vr_purchase > 0) ? (($vr_sell - $vr_purchase) / $vr_purchase) * 100 : 0;
+    ?>
+    <div class="small fw-bold text-primary">ক্রয়: ৳<?= number_format($vr_purchase, 2) ?></div>
+    <div class="text-success fw-bold">বিক্রয়: ৳<?= number_format($vr_sell, 2) ?></div>
+    <div class="margin-text">Margin: <?= round($v_margin, 1) ?>%</div>
+</td>
             <td class="text-center" data-sort="<?= $grp_stock ?>_<?= $grp_id ?>_<?= $v_idx ?>">
                 <div class="fw-bold mb-0" style="font-size: 13px;"><?= $v['stock_qty'] ?></div>
                 <div class="inv-value mt-1" style="font-size: 11px;">৳<?= number_format($v['purchase_price'] * $v['stock_qty'], 0) ?></div>

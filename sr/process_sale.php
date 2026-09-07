@@ -57,34 +57,82 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $customer_name = $existing_customer['name'];
         }
 
-        // ১. সেলস টেবিলে এন্ট্রি
-        $stmt = $conn->prepare("INSERT INTO sales (godown_id, user_id, customer_name, customer_phone, customer_address, total_amount, discount, payable_amount, paid_amount, due_amount, created_at) VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, ?, NOW())");
-        $stmt->execute([$godown_id, $user_id, $customer_name, $customer_phone, $customer_address, $total_amount, $payable_amount, $paid_amount, $due_amount]);
+// ১. সেলস টেবিলে এন্ট্রি (ডিসকাউন্টসহ)
+        $total_item_discount = isset($_POST['p_discounts']) ? array_sum($_POST['p_discounts']) : 0;
+
+        $stmt = $conn->prepare("INSERT INTO sales (godown_id, user_id, customer_name, customer_phone, customer_address, total_amount, discount, payable_amount, paid_amount, due_amount, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())");
+        $stmt->execute([$godown_id, $user_id, $customer_name, $customer_phone, $customer_address, $total_amount, $total_item_discount, $payable_amount, $paid_amount, $due_amount]);
         $sale_id = $conn->lastInsertId();
 
-        // ২. সেল আইটেম এন্ট্রি ও স্টক আপডেট
+       // ২. সেল আইটেম এন্ট্রি ও স্টক আপডেট (ব্যাচ সিস্টেম বা FIFO লজিক)
+        // ২. সেল আইটেম এন্ট্রি ও স্টক আপডেট (ব্রাউজারে ১ রো, ডাটাবেজে একাধিক চালানের এন্ট্রি)
         if (isset($_POST['p_ids'])) {
             foreach ($_POST['p_ids'] as $key => $p_id_type) {
-                $type = substr($p_id_type, 0, 1);
+                $type_code = substr($p_id_type, 0, 1);
                 $id = substr($p_id_type, 1);
-                $qty = $_POST['p_qtys'][$key];
-                $price = $_POST['p_prices'][$key];
-                $discount = $_POST['p_discounts'][$key];
-                $subtotal = ($price * $qty) - $discount;
+                $qty_needed = (float)$_POST['p_qtys'][$key];
+                $input_price = (float)$_POST['p_prices'][$key];
+                $input_discount = (float)$_POST['p_discounts'][$key];
+                
+                $item_type = ($type_code == 'p') ? 'single' : 'variant';
+                $main_p_id = ($type_code == 'v') ? $conn->query("SELECT product_id FROM product_variants WHERE id = $id")->fetchColumn() : $id;
 
-                if ($type == 'p') {
-                    $stmt = $conn->prepare("INSERT INTO sale_items (sale_id, product_id, qty, unit_price, subtotal, discount) VALUES (?, ?, ?, ?, ?, ?)");
-                    $stmt->execute([$sale_id, $id, $qty, $price, $subtotal, $discount]);
-                    $conn->prepare("UPDATE products SET stock_qty = stock_qty - ? WHERE id = ?")->execute([$qty, $id]);
-                } else {
-                    $v_stmt = $conn->prepare("SELECT product_id FROM product_variants WHERE id = ?");
-                    $v_stmt->execute([$id]);
-                    $main_p_id = $v_stmt->fetchColumn();
+                // মেইন দাম চেক (ইউজার এডিট করেছে কি না তা বুঝার জন্য)
+                $std_price = ($type_code == 'p') ? 
+                             $conn->query("SELECT sell_price FROM products WHERE id = $id")->fetchColumn() : 
+                             $conn->query("SELECT sell_price FROM product_variants WHERE id = $id")->fetchColumn();
 
-                    $stmt = $conn->prepare("INSERT INTO sale_items (sale_id, product_id, variant_id, qty, unit_price, subtotal, discount) VALUES (?, ?, ?, ?, ?, ?, ?)");
-                    $stmt->execute([$sale_id, $main_p_id, $id, $qty, $price, $subtotal, $discount]);
-                    $conn->prepare("UPDATE product_variants SET stock_qty = stock_qty - ? WHERE id = ?")->execute([$qty, $id]);
+                $remaining_to_deduct = $qty_needed;
+
+                // ১. ভেরিয়েবল এবং কেনা দাম সেট করে রাখা (মুছবেন না, শুধু যোগ করুন)
+                $variant_val = ($type_code == 'v') ? $id : null;
+                $get_buy = $conn->prepare(($type_code == 'p') ? "SELECT purchase_price FROM products WHERE id = ?" : "SELECT purchase_price FROM product_variants WHERE id = ?");
+                $get_buy->execute([$id]);
+                $orig_buy_price = $get_buy->fetchColumn();
+
+                // FIFO অনুযায়ী ব্যাচ খোঁজা
+                $batch_stmt = $conn->prepare("SELECT id, remaining_qty, purchase_price, sell_price FROM purchase_items WHERE product_id = ? AND item_type = ? AND remaining_qty > 0 ORDER BY id ASC");
+                $batch_stmt->execute([$id, $item_type]);
+
+                while ($remaining_to_deduct > 0 && $batch = $batch_stmt->fetch()) {
+                    $take = min($remaining_to_deduct, $batch['remaining_qty']);
+                    $batch_id = $batch['id'];
+                    $buy_price = $batch['purchase_price']; 
+                    $batch_sell_price = $batch['sell_price'];
+
+                    // লজিক: যদি ইউজার দাম এডিট না করে, তবে চালানের একচুয়াল দাম বসবে
+                    // আর যদি এডিট করে, তবে সেই এডিটেড দামটিই বসবে
+                    if (abs($input_price - $std_price) < 0.1) {
+                        $actual_unit_price = $batch_sell_price;
+                    } else {
+                        $actual_unit_price = $input_price;
+                    }
+
+                    $p_discount = ($input_discount / $qty_needed) * $take;
+                    $subtotal = ($actual_unit_price * $take) - $p_discount;
+                    $calculated_total_amount += $subtotal;
+
+                    // ডাটাবেজে ইনসার্ট (একই প্রোডাক্টের জন্য আলাদা ব্যাচ এন্ট্রি)
+                    $stmt_item = $conn->prepare("INSERT INTO sale_items (sale_id, product_id, variant_id, purchase_item_id, qty, unit_price, buy_price_at_sale, subtotal, discount) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                    $variant_val = ($type_code == 'v') ? $id : null;
+                    $stmt_item->execute([$sale_id, $main_p_id, $variant_val, $batch_id, $take, $actual_unit_price, $buy_price, $subtotal, $p_discount]);
+
+                    // ব্যাচ স্টক মাইনাস
+                    $conn->prepare("UPDATE purchase_items SET remaining_qty = remaining_qty - ? WHERE id = ?")->execute([$take, $batch_id]);
+                    $remaining_to_deduct -= $take;
                 }
+                // ২. যদি কোনো কারণে চালানে (Batch) তথ্য না থাকে, তবুও যেন এন্ট্রি হয়
+                if ($remaining_to_deduct > 0) {
+                    $p_discount = ($input_discount / $qty_needed) * $remaining_to_deduct;
+                    $subtotal = ($input_price * $remaining_to_deduct) - $p_discount;
+
+                    $stmt_fallback = $conn->prepare("INSERT INTO sale_items (sale_id, product_id, variant_id, purchase_item_id, qty, unit_price, buy_price_at_sale, subtotal, discount) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                    $stmt_fallback->execute([$sale_id, $main_p_id, $variant_val, null, $remaining_to_deduct, $input_price, $orig_buy_price, $subtotal, $p_discount]);
+                }
+
+                // মেইন স্টক আপডেট
+                $table = ($type_code == 'p') ? 'products' : 'product_variants';
+                $conn->prepare("UPDATE $table SET stock_qty = stock_qty - ? WHERE id = ?")->execute([$qty_needed, $id]);
             }
         }
 

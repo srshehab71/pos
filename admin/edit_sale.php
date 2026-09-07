@@ -188,21 +188,27 @@ include 'includes/header.php';
             $('#qty_input').focus();
         });
 
-        // কার্টে আগের আইটেম লোড করা
-        <?php foreach($current_items as $item): 
-            $type = $item['variant_id'] ? 'v' : 'p';
-            $id = $item['variant_id'] ? $item['variant_id'] : $item['product_id'];
-            $name = $item['product_name'] . ($item['variant_name'] ? " - ".$item['variant_name'] : "");
-        ?>
-        cart.push({
-            id: "<?= $type.$id ?>",
-            name: "<?= addslashes($name) ?>",
-            price: parseFloat("<?= $item['unit_price'] ?>"),
-            qty: parseFloat("<?= $item['qty'] ?>"),
-            discount: parseFloat("<?= $item['discount'] ?>"),
-            subtotal: parseFloat("<?= $item['subtotal'] ?>")
-        });
-        <?php endforeach; ?>
+        // কার্টে আগের আইটেম লোড করা (এই অংশটি খুজে বের করুন)
+<?php foreach($current_items as $item): 
+    $type = $item['variant_id'] ? 'v' : 'p';
+    $id = $item['variant_id'] ? $item['variant_id'] : $item['product_id'];
+    $name = $item['product_name'] . ($item['variant_name'] ? " - ".$item['variant_name'] : "");
+    
+    // ডাটাবেজে ০ থাকলে ক্যালকুলেশন করে ডিসকাউন্ট বের করা
+    $item_discount = $item['discount'];
+    if($item_discount == 0) {
+        $item_discount = ($item['unit_price'] * $item['qty']) - $item['subtotal'];
+    }
+?>
+cart.push({
+    id: "<?= $type.$id ?>",
+    name: "<?= addslashes($name) ?>",
+    price: parseFloat("<?= $item['unit_price'] ?>"),
+    qty: parseFloat("<?= $item['qty'] ?>"),
+    discount: parseFloat("<?= $item_discount ?>"), // এটি পরিবর্তন করা হয়েছে
+    subtotal: parseFloat("<?= $item['subtotal'] ?>")
+});
+<?php endforeach; ?>
         renderCart();
 
         $('#qty_input, #item_discount_input').on('keypress', function (e) {
@@ -242,37 +248,43 @@ include 'includes/header.php';
     }
 
     function renderCart() {
-        let body = document.getElementById('cart_body');
-        body.innerHTML = '';
-        let itemTotal = 0;
+    let body = document.getElementById('cart_body');
+    body.innerHTML = '';
+    let itemTotal = 0;
 
-        cart.forEach((item, index) => {
-            itemTotal += item.subtotal;
-            body.innerHTML += `
-                <tr class="border-bottom">
-                    <td class="fw-bold">${item.name} <input type="hidden" name="p_ids[]" value="${item.id}"></td>
-                    <td><input type="number" name="p_prices[]" class="form-control form-control-sm" style="width:100px" value="${item.price}" step="any" onchange="updateRow(${index}, null, this.value)"></td>
-                    <td><input type="number" name="p_qtys[]" class="form-control form-control-sm" style="width:70px" value="${item.qty}" step="any" onchange="updateRow(${index}, this.value, null)"></td>
-                    <td class="text-danger">${item.discount.toFixed(2)} <input type="hidden" name="p_discounts[]" value="${item.discount}"></td>
-                    <td class="fw-bold">${item.subtotal.toFixed(2)}</td>
-                    <td class="text-center">
-                        <button type="button" class="btn btn-sm text-danger" onclick="cart.splice(${index},1);renderCart()">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </td>
-                </tr>`;
-        });
-        document.getElementById('current_bill_text').innerText = itemTotal.toFixed(2);
-        document.getElementById('payable_amount_hidden').value = itemTotal.toFixed(2);
-        calculateTotal();
-    }
+    cart.forEach((item, index) => {
+        itemTotal += item.subtotal;
+        body.innerHTML += `
+            <tr class="border-bottom">
+                <td class="fw-bold">${item.name} <input type="hidden" name="p_ids[]" value="${item.id}"></td>
+                <td><input type="number" name="p_prices[]" class="form-control form-control-sm" style="width:100px" value="${item.price}" step="any" onchange="updateRow(${index}, null, this.value, null)"></td>
+                <td><input type="number" name="p_qtys[]" class="form-control form-control-sm" style="width:70px" value="${item.qty}" step="any" onchange="updateRow(${index}, this.value, null, null)"></td>
+                
+                <!-- ডিসকাউন্ট এডিট বক্স -->
+                <td><input type="number" name="p_discounts[]" class="form-control form-control-sm text-danger" style="width:80px" value="${item.discount}" step="any" onchange="updateRow(${index}, null, null, this.value)"></td>
+                
+                <td class="fw-bold">${item.subtotal.toFixed(2)}</td>
+                <td class="text-center">
+                    <button type="button" class="btn btn-sm text-danger" onclick="cart.splice(${index},1);renderCart()">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </td>
+            </tr>`;
+    });
+    document.getElementById('current_bill_text').innerText = itemTotal.toFixed(2);
+    document.getElementById('payable_amount_hidden').value = itemTotal.toFixed(2);
+    calculateTotal();
+}
 
-    function updateRow(index, newQty = null, newPrice = null) {
-        if (newQty !== null) cart[index].qty = parseFloat(newQty) || 0;
-        if (newPrice !== null) cart[index].price = parseFloat(newPrice) || 0;
-        cart[index].subtotal = (cart[index].price * cart[index].qty) - cart[index].discount;
-        renderCart();
-    }
+    function updateRow(index, newQty = null, newPrice = null, newDisc = null) {
+    if (newQty !== null) cart[index].qty = parseFloat(newQty) || 0;
+    if (newPrice !== null) cart[index].price = parseFloat(newPrice) || 0;
+    if (newDisc !== null) cart[index].discount = parseFloat(newDisc) || 0;
+    
+    // নতুন সাবটোটাল: (দাম * পরিমাণ) - ডিসকাউন্ট
+    cart[index].subtotal = (cart[index].price * cart[index].qty) - cart[index].discount;
+    renderCart();
+}
 
     function calculateTotal() {
         let bill = parseFloat(document.getElementById('payable_amount_hidden').value) || 0;
@@ -285,7 +297,7 @@ include 'includes/header.php';
     $('#editSaleForm').on('submit', function(e) {
         if (cart.length === 0) {
             e.preventDefault();
-            alert("কার্ট খালি!");
+            alert("আপনি কোন প্রোডাক্ট যোগ করেননি! আগে যোগ করুন এরপর আপডেট করুন।");
             return false;
         }
     });

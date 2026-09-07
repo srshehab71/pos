@@ -28,15 +28,55 @@ $item_stmt = $conn->prepare("SELECT sale_items.*, products.product_name, product
 $item_stmt->execute([$sale_id]);
 $items = $item_stmt->fetchAll();
 
+// --- গ্রুপিং লজিক শুরু ---
+$grouped_items = [];
+$total_item_discount = 0;
+
+foreach ($items as $item) {
+    $key = $item['product_id'] . '_' . ($item['variant_id'] ?? '0');
+    $total_item_discount += (float)$item['discount'];
+
+    if (!isset($grouped_items[$key])) {
+        $grouped_items[$key] = [
+            'name' => $item['product_name'] . (!empty($item['variant_name']) ? " - " . $item['variant_name'] : ""),
+            'total_qty' => 0,
+            'total_row_amount' => 0,
+            'single_price' => $item['unit_price'],
+            'discount' => 0, // <--- এটি নিশ্চিত করুন
+            'price_segments' => []
+        ];
+    }
+    // নিচে এই লাইনটি অবশ্যই যোগ করবেন (প্রতি আইটেমের ডিসকাউন্ট যোগ হবে)
+    $grouped_items[$key]['discount'] += (float)$item['discount'];
+    
+    // বাকি কোড (qty, price_segments) আগের মতোই থাকবে...
+
+    $qty = (float)$item['qty'];
+    $price = (float)$item['unit_price'];
+    
+    // সঠিক মোট হিসাব: প্রতিটি ব্যাচের (পরিমাণ x মূল্য) যোগ হবে
+    $grouped_items[$key]['total_qty'] += $qty;
+    $grouped_items[$key]['total_row_amount'] += ($qty * $price);
+    
+    // উপরে নিচে দেখানোর জন্য ফরম্যাট (যেমন: 10.45 x 10)
+    $grouped_items[$key]['price_segments'][] = number_format($price, ) . "৳  x " . (float)$qty . "টি ";
+}
+// --- গ্রুপিং লজিক শেষ ---
+
+ 
 // মোট ডিসকাউন্ট হিসাব করার জন্য ভেরিয়েবল
 $total_item_discount = 0;
 
 // লজিক: আজকের পন্যের বিল এবং আগের বাকী সমন্বয় হিসাব করা
-$today_net_bill = (float)$sale['total_amount']; // আজকের মালের আসল দাম
-$paid_amount = (float)$sale['paid_amount']; // কাস্টমার কত টাকা দিলো
+// ১. ডাটাবেজ থেকে সরাসরি তথ্য নেওয়া
+$gross_total = (float)$sale['total_amount'];      // ছাড় ছাড়া আসল দাম
+$total_discount = (float)$sale['discount'];     // মোট ছাড় (৳)
+$today_net_bill = (float)$sale['payable_amount']; // ছাড় দেওয়ার পর নিট দাম
+
+$paid_amount = (float)$sale['paid_amount']; 
 $due_adjustment = 0;
 
-// যদি কাস্টমার আজকের বিলের চেয়ে বেশি টাকা দেয়, তবে বাড়তি টাকাটাই হলো আগের বাকী সমন্বয়
+// যদি পরিশোধ নিট বিলের চেয়ে বেশি হয়, তবে সেটি আগের বাকী সমন্বয়
 if ($paid_amount > $today_net_bill) {
     $due_adjustment = $paid_amount - $today_net_bill;
 }
@@ -46,9 +86,25 @@ if ($paid_amount > $today_net_bill) {
 <html lang="bn">
 <head>
     <meta charset="UTF-8">
-    <title>POS_Receipt_#<?php echo $sale['id']; ?></title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>প্রিন্ট ইনভয়েস</title>
     <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
+        html {
+    -webkit-text-size-adjust: 100%; /* ফন্ট বড় হওয়া বন্ধ করবে */
+}
+
+body {
+    -webkit-text-size-adjust: none;
+}
+
+/* ফুটার টেক্সট ফিক্স করার জন্য এটি যোগ করুন */
+.footer p {
+    font-size: 12px !important;
+    line-height: 1.4;
+    margin: 5px 0;
+}
+
         /* থার্মাল প্রিন্টার সেটিংস (80mm) */
         * { box-sizing: border-box; -webkit-print-color-adjust: exact; }
         body { 
@@ -174,68 +230,87 @@ if ($paid_amount > $today_net_bill) {
             </tr>
         </thead>
         <tbody>
-            <?php foreach ($items as $item): 
-                $total_item_discount += $item['discount']; // আইটেম ডিসকাউন্ট যোগ করা
-            ?>
-            <tr>
-                <td align="left">
-                    <strong><?php 
-                        echo $item['product_name']; 
-                        if(!empty($item['variant_name'])) { echo " - " . $item['variant_name']; }
-                        // আইটেম ডিসকাউন্ট থাকলে ছোট করে দেখানো
-                        if($item['discount'] > 0) { echo "<br><small>(ছাড়: ৳".number_format($item['discount'], 2).")</small>"; }
-                    ?></strong>
-                </td>
-                <td>
-                    <strong>৳<?php echo number_format($item['unit_price'], 2); ?></strong>
-                </td>
-                <td align="center"><strong><?php echo $item['qty']; ?></strong></td>
-                <td align="right"><strong><?php echo number_format($item['unit_price'] * $item['qty'], 2); ?></strong></td>
-            </tr>
-            <?php endforeach; ?>
+            <?php foreach ($grouped_items as $item): ?>
+<tr>
+        <td align="left">
+    <strong><?php echo $item['name']; ?></strong>
+    
+    <?php 
+    // যদি প্রতিটি আইটেমে আলাদা ডিসকাউন্ট থাকে
+    if(isset($item['discount']) && $item['discount'] > 0): ?>
+        <br><span style="color:black; font-size: 11px; font-weight: bold;">(ছাড়: -৳<?php echo number_format($item['discount'], 2); ?>)</span>
+    <?php 
+    // যদি আইটেমে ডিসকাউন্ট না থাকে কিন্তু পুরো বিলে থাকে এবং লিস্টে মাত্র ১টি আইটেম থাকে
+    elseif (count($grouped_items) == 1 && $total_discount > 0): ?>
+        <br><span style="color:black; font-size: 11px; font-weight: bold;">(ছাড়: -৳<?php echo number_format($total_discount, 2); ?>)</span>
+    <?php endif; ?>
+</td>
+    <td align="center" style="font-size: 11px; line-height: 1.2; vertical-align: middle;">
+    <strong>
+        <?php 
+        if (count($item['price_segments']) > 1) {
+            // ব্যাচ আলাদা হলে উপরে নিচে দেখাবে
+            echo implode("<br>", $item['price_segments']); 
+        } else {
+            // একটি ব্যাচ হলে শুধু সাধারণ দাম
+            echo number_format($item['single_price'], 2);
+        }
+        ?>
+    </strong>
+</td>
+
+<td align="center" style="vertical-align: middle;">
+    <strong><?php echo (float)$item['total_qty']; ?></strong>
+</td>
+
+<td align="right" style="vertical-align: middle;">
+    <strong><?php echo number_format($item['total_row_amount'], 2); ?></strong>
+</td>
+</tr>
+<?php endforeach; ?>
         </tbody>
     </table>
 
     <div class="summary">
-    <!-- যদি ডিসকাউন্ট থাকে তবেই 'আজকের বিল' এবং 'ছাড়' এর লাইন দুটি দেখাবে -->
-    <?php if ($total_item_discount > 0): ?>
+    <!-- যদি ডিসকাউন্ট থাকে তবেই এই অংশটি দেখাবে -->
+    <?php if ($total_discount > 0): ?>
         <div class="summary-row">
             <strong><span>মোট বিল:</span></strong>
-            <strong><span><?php echo number_format($sale['total_amount'] + $total_item_discount, 2); ?></span></strong>
+            <strong><span><?php echo number_format($gross_total, 2); ?></span></strong>
         </div>
 
         <div class="summary-row">
             <strong><span>মোট ছাড় (Discount):</span></strong>
-            <strong><span>- <?php echo number_format($total_item_discount, 2); ?></span></strong>
+            <strong><span style="color:black;">- <?php echo number_format($total_discount, 2); ?></span></strong>
         </div>
         <div class="divider"></div>
     <?php endif; ?>
 
-    <!-- আজকের নিট বিল (এটি সব সময় দেখাবে) -->
+    <!-- নিট বিল -->
     <div class="summary-row fw-bold">
         <strong><span> সর্বমোট বিল:</span></strong>
         <strong><span><?php echo number_format($today_net_bill, 2); ?></span></strong>
     </div>
 
-    <!-- আগের বাকী সমন্বয় (যদি পরিশোধ আজকের বিলের চেয়ে বেশি হয়) -->
+    <!-- বাকী সমন্বয় -->
     <?php if ($due_adjustment > 0): ?>
-    <div class="summary-row fw-bold" style="color: #2e7d32;">
-        <span>পূর্বের বাকী সমন্বয় (+):</span>
+    <div class="summary-row fw-bold" style="color: #000000;">
+        <span>আগের বাকী সমন্বয় (+):</span>
         <span><?php echo number_format($due_adjustment, 2); ?></span>
     </div>
     <?php endif; ?>
 
-    <!-- মোট নগদ গ্রহণ বা পরিশোধ (সব সময় দেখাবে) -->
+    <!-- পরিশোধ -->
     <div class="summary-row fw-bold grand-total">
-        <span>পরিশোধ:</span>
+        <span>নগদ পরিশোধ:</span>
         <span><?php echo number_format($paid_amount, 2); ?></span>
     </div>
     
-    <!-- বকেয়া (যদি আজকের বিল পরিশোধের চেয়ে বেশি হয়) -->
+    <!-- বকেয়া -->
     <?php if ($sale['due_amount'] > 0): ?>
     <div class="summary-row fw-bold">
-        <span>বকেয়া:</span>
-        <span><?php echo number_format($sale['due_amount'], 2); ?></span>
+        <span style="color:black;">বকেয়া (Due):</span>
+        <span style="color:black;"><?php echo number_format($sale['due_amount'], 2); ?></span>
     </div>
     <?php endif; ?>
 </div>

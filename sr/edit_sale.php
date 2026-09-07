@@ -254,39 +254,8 @@ include 'includes/header.php';
         $('#product_selector').select2('open');
     }
 
-    function renderCart() {
-        let body = document.getElementById('cart_body');
-        body.innerHTML = '';
-        let itemTotal = 0;
-
-        cart.forEach((item, index) => {
-            itemTotal += item.subtotal;
-            body.innerHTML += `
-                <tr class="border-bottom">
-                    <td class="fw-bold">
-                        ${item.name} 
-                        <input type="hidden" name="p_ids[]" value="${item.id}">
-                    </td>
-                    <td>
-    <input type="number" name="p_prices[]" class="form-control form-control-sm" style="width:100px" value="${item.price}" step="any" onchange="updateRow(${index}, null, this.value)">
-</td>
-                    <td><input type="number" name="p_qtys[]" class="form-control form-control-sm" style="width:70px" value="${item.qty}" step="any" onchange="updateRow(${index}, this.value)"></td>
-                    <td class="text-danger">${item.discount.toFixed(2)} <input type="hidden" name="p_discounts[]" value="${item.discount}"></td>
-                    <td class="fw-bold">${item.subtotal.toFixed(2)}</td>
-                    <td class="text-center">
-                        <button type="button" class="btn btn-sm text-danger" onclick="cart.splice(${index},1);renderCart()">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </td>
-                </tr>`;
-        });
-
-        document.getElementById('current_bill_text').innerText = itemTotal.toFixed(2);
-        document.getElementById('payable_amount_hidden').value = itemTotal.toFixed(2);
-        calculateTotal();
-    }
-
-    function renderCart() {
+    // ১. কার্ট রেন্ডার করার ফাংশন (একটিই থাকবে)
+function renderCart() {
     let body = document.getElementById('cart_body');
     body.innerHTML = '';
     let itemTotal = 0;
@@ -299,16 +268,14 @@ include 'includes/header.php';
                     ${item.name} 
                     <input type="hidden" name="p_ids[]" value="${item.id}">
                 </td>
-                <!-- এখানে মূল্য এখন ইনপুট বক্স হিসেবে আছে -->
                 <td>
-                    <input type="number" name="p_prices[]" class="form-control form-control-sm" style="width:100px" value="${item.price.toFixed(2)}" step="any" onchange="updateRow(${index}, null, this.value)">
+                    <input type="number" name="p_prices[]" class="form-control form-control-sm" style="width:90px" value="${item.price.toFixed(2)}" step="any" onchange="updateRow(${index}, null, this.value, null)">
                 </td>
                 <td>
-                    <input type="number" name="p_qtys[]" class="form-control form-control-sm" style="width:70px" value="${item.qty}" step="any" onchange="updateRow(${index}, this.value, null)">
+                    <input type="number" name="p_qtys[]" class="form-control form-control-sm" style="width:70px" value="${item.qty}" step="any" onchange="updateRow(${index}, this.value, null, null)">
                 </td>
-                <td class="text-danger">
-                    ${item.discount.toFixed(2)} 
-                    <input type="hidden" name="p_discounts[]" value="${item.discount}">
+                <td>
+                    <input type="number" name="p_discounts[]" class="form-control form-control-sm text-danger" style="width:85px" value="${item.discount.toFixed(2)}" step="any" onchange="updateRow(${index}, null, null, this.value)">
                 </td>
                 <td class="fw-bold">${item.subtotal.toFixed(2)}</td>
                 <td class="text-center">
@@ -324,14 +291,17 @@ include 'includes/header.php';
     calculateTotal();
 }
 
-// আপডেট ফাংশন যা পরিমাণ এবং মূল্য উভয়ই হ্যান্ডেল করবে
-function updateRow(index, newQty = null, newPrice = null) {
+// ২. আপডেট করার ফাংশন (৪টি প্যারামিটার থাকবে)
+function updateRow(index, newQty = null, newPrice = null, newDisc = null) {
     if (newQty !== null) cart[index].qty = parseFloat(newQty) || 0;
     if (newPrice !== null) cart[index].price = parseFloat(newPrice) || 0;
+    if (newDisc !== null) cart[index].discount = parseFloat(newDisc) || 0;
 
+    // নতুন সাবটোটাল হিসাব
     cart[index].subtotal = (cart[index].price * cart[index].qty) - cart[index].discount;
     renderCart();
 }
+
 
     function calculateTotal() {
         let bill = parseFloat(document.getElementById('payable_amount_hidden').value) || 0;

@@ -44,15 +44,16 @@ $summary_stmt = $conn->prepare("SELECT
 $summary_stmt->execute([$gid, $start_date, $end_date]);
 $summary = $summary_stmt->fetch();
 
-// --- ৩. নিট লাভের হিসাব (আপনার ভেরিয়েন্টসহ লজিক) ---
+// --- ৩. নিট লাভের হিসাব (ব্যাচ সিস্টেম বা আসল কেনা দামের লজিক) ---
 $profit_stmt = $conn->prepare("SELECT 
     SUM(
-        (si.unit_price - 
+        si.subtotal - (
             CASE 
+                WHEN si.buy_price_at_sale > 0 THEN si.buy_price_at_sale 
                 WHEN si.variant_id IS NOT NULL AND si.variant_id > 0 THEN pv.purchase_price 
                 ELSE p.purchase_price 
-            END
-        ) * si.qty
+            END * si.qty
+        )
     ) as total_profit
     FROM sale_items si
     JOIN sales s ON si.sale_id = s.id

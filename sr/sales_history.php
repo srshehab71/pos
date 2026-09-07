@@ -211,14 +211,14 @@ body.dark, body.dark-mode { background-color: #111418 !important; }
     <input type="hidden" name="range" value="<?= htmlspecialchars($range) ?>">
         <div class="row g-2 align-items-center">
             <!-- সার্চ ইনপুট (অটো সাবমিট হবে) -->
-            <div class="col-12">
+            <div class="col-7">
                 <input type="text" name="search" class="form-control" style="border-radius:10px;" placeholder="নাম বা ফোন..." value="<?= htmlspecialchars($_GET['search'] ?? '') ?>">
             </div>
                         
 
 
             <!-- রেঞ্জ ফিল্টার ও বড় আইকন (ডান পাশে সরানো হয়েছে) -->
-            <div class="col-md-7 d-flex gap-2 justify-content-end align-items-center">
+            <div class="col-md-5 d-flex gap-2 justify-content-end align-items-center">
                 <div class="btn-group shadow-sm rounded-pill overflow-hidden bg-white border">
                     <a href="?range=today" class="btn btn-sm btn-outline-primary <?= $range == 'today' ? 'active' : '' ?>">আজ</a>
                     <a href="?range=week" class="btn btn-sm btn-outline-primary <?= $range == 'week' ? 'active' : '' ?>">সপ্তাহ</a>
