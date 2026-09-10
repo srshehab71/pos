@@ -15,21 +15,28 @@ $start_date = $_GET['start_date'] ?? '';
 $end_date = $_GET['end_date'] ?? '';
 
 // ডিফল্টভাবে আজকের তারিখ সেট করা (যদি সব খালি থাকে)
-if ($range == '' && $search == '' && $start_date == '') {
+// ১. কাস্টম ডেট সিলেক্ট থাকলে range ফাঁকা করে দিন
+if (!empty($start_date) && !empty($end_date)) {
+    $range = ''; 
+} elseif (!empty($range)) {
+    // ২. বাটনে চাপ দিলে সেই অনুযায়ী ডেট সেট হবে
+    if ($range === 'today') {
+        $start_date = date('Y-m-d');
+        $end_date = date('Y-m-d');
+    } elseif ($range === 'week') {
+        $start_date = date('Y-m-d', strtotime('-7 days'));
+        $end_date = date('Y-m-d');
+    } elseif ($range === 'month') {
+        $start_date = date('Y-m-01');
+        $end_date = date('Y-m-d');
+    } elseif ($range === 'year') {
+        $start_date = date('Y-01-01');
+        $end_date = date('Y-m-d');
+    }
+} else {
+    // ৩. প্রথমবার পেজে ঢুকলে ডিফল্ট আজকের ডেট থাকবে
     $range = 'today';
-}
-
-if ($range === 'today') {
     $start_date = date('Y-m-d');
-    $end_date = date('Y-m-d');
-} elseif ($range === 'week') {
-    $start_date = date('Y-m-d', strtotime('-7 days'));
-    $end_date = date('Y-m-d');
-} elseif ($range === 'month') {
-    $start_date = date('Y-m-01');
-    $end_date = date('Y-m-d');
-} elseif ($range === 'year') {
-    $start_date = date('Y-01-01');
     $end_date = date('Y-m-d');
 }
 
@@ -56,20 +63,7 @@ if ($start_date !== '' && $end_date !== '') {
     $params[] = $end_date;
 }
 
-if (!empty($_GET['search'])) {
-    $where_clauses[] = "(customer_name LIKE ? OR customer_phone LIKE ?)";
-    $params[] = "%" . $_GET['search'] . "%";
-    $params[] = "%" . $_GET['search'] . "%";
-}
 
-$start_date = $_GET['start_date'] ?? '';
-$end_date = $_GET['end_date'] ?? '';
-
-if (!empty($start_date) && !empty($end_date)) {
-    $where_clauses[] = "DATE(created_at) BETWEEN ? AND ?";
-    $params[] = $start_date;
-    $params[] = $end_date;
-}
 
 $where_sql = implode(" AND ", $where_clauses);
 $stmt = $conn->prepare("
@@ -248,8 +242,8 @@ body.dark, body.dark-mode { background-color: #111418 !important; }
                     <input type="date" name="end_date" class="form-control" value="<?= $end_date ?>">
                 </div>
                 <div class="col-2">
-                    <button type="submit" class="btn btn-primary w-100">ঠিক আছে</button>
-                </div>
+    <button type="submit" onclick="document.querySelector('input[name=range]').value='';" class="btn btn-primary w-100">ঠিক আছে</button>
+</div>
             </div>
         </div>
     </form>
@@ -318,7 +312,7 @@ body.dark, body.dark-mode { background-color: #111418 !important; }
                                         <li><a class="dropdown-item py-2 fw-bold" href="print_invoice.php?id=<?= $s['id'] ?>" target="_blank"><i class="fas fa-print me-2 text-primary"></i> প্রিন্ট মেমো</a></li>
                                         <li><a class="dropdown-item py-2 fw-bold" href="edit_sale.php?id=<?= $s['id'] ?>"><i class="fas fa-edit me-2 text-warning"></i> এডিট করুন</a></li>
                                         <li><hr class="dropdown-divider"></li>
-                                        <li><a class="dropdown-item py-2 fw-bold text-danger" href="delete_sale.php?id=<?= $s['id'] ?>" onclick="return confirm('আপনি কি নিশ্চিত?')"><i class="fas fa-trash-alt me-2"></i> ডিলিট করুন</a></li>
+                                        <li><a class="dropdown-item py-2 fw-bold text-danger" href="delete_sale.php?id=<?= $s['id'] ?>" onclick="return confirm('আপনি কি নিশ্চিত? ডিলিট করলে সকল প্রোডাক্টের স্টক পুনরায় গোডাউনে যোগ হবে।')"><i class="fas fa-trash-alt me-2"></i> ডিলিট করুন</a></li>
                                     </ul>
                                 </div>
                             </td>

@@ -13,8 +13,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $payable_amount = $_POST['payable_amount'];
     $paid_amount = $_POST['paid_amount'];
     $due_amount = $_POST['due_amount'];
-    $sale_date = $_POST['sale_date']; // ফর্ম থেকে আসা ডেট ও টাইম
-
+    // ফর্ম থেকে আসা ডেট MySQL ফরম্যাটে (Y-m-d H:i:s) রূপান্তর
+if (!empty($_POST['sale_date'])) {
+    $sale_date = date('Y-m-d H:i:s', strtotime($_POST['sale_date']));
+} else {
+    $sale_date = date('Y-m-d H:i:s'); // যদি ফাঁকা থাকে তবে বর্তমান সময়
+}
     // --- নতুন চেক লজিক শুরু (আপনার অনুরোধ অনুযায়ী) ---
     // ডাটাবেজে এই নম্বরের কোনো কাস্টমার আছে কি না দেখা
     $stmt_val = $conn->prepare("SELECT name FROM customers WHERE phone = ? AND godown_id = ?");
@@ -116,14 +120,15 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     $remaining_to_deduct -= $take;
                 }
 
-                // যদি কোনো কারণে ব্যাচে মাল না থাকে (পুরানো মাল) তবুও মেইন স্টক থেকে কাটবে
+// যদি কোনো কারণে ব্যাচে মাল না থাকে (পুরানো মাল) তবুও মেইন স্টক থেকে কাটবে
                 if ($remaining_to_deduct > 0) {
-                    $subtotal = ($price * $remaining_to_deduct) - ($discount_total / $qty_needed * $remaining_to_deduct);
+                    $item_discount_calc = ($qty_needed > 0) ? ($discount_total / $qty_needed * $remaining_to_deduct) : 0;
+                    $subtotal = ($price * $remaining_to_deduct) - $item_discount_calc;
                     $stmt = $conn->prepare("INSERT INTO sale_items (sale_id, product_id, variant_id, qty, unit_price, subtotal, discount) VALUES (?, ?, ?, ?, ?, ?, ?)");
                     $variant_val = ($type_code == 'v') ? $id : null;
-                    $stmt->execute([$sale_id, $main_p_id, $variant_val, $remaining_to_deduct, $price, $subtotal, 0]);
+                    $stmt->execute([$sale_id, $main_p_id, $variant_val, $remaining_to_deduct, $price, $subtotal, $item_discount_calc]);
                 }
-
+                
                 // ৩. মূল প্রোডাক্ট বা ভ্যারিয়েন্ট টেবিলের স্টক আপডেট (সামারি স্টক)
                 if ($type_code == 'p') {
                     $conn->prepare("UPDATE products SET stock_qty = stock_qty - ? WHERE id = ?")->execute([$qty_needed, $id]);

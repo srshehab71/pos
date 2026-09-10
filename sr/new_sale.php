@@ -78,8 +78,7 @@ input[type="datetime-local"] {
         </a>
                 <!-- ডেট এবং টাইম ইনপুট -->
 <div class="mb-8">
-    <input type="datetime-local" name="sale_date" id="sale_date" class="form-control rounded-3 shadow-none" 
-    value="<?= date('Y-m-d\TH:i'); ?>" required>
+    <input type="datetime-local" name="sale_date" id="sale_date" form="saleForm" class="form-control rounded-3 shadow-none" value="<?= date('Y-m-d\TH:i'); ?>" required>
 </div>
     </div>
 

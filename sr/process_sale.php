@@ -13,6 +13,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $payable_amount = $_POST['payable_amount'];
     $paid_amount = $_POST['paid_amount'];
     $due_amount = $_POST['due_amount'];
+    // ফর্ম থেকে আসা ডেট MySQL ফরম্যাটে (Y-m-d H:i:s) রূপান্তর
+if (!empty($_POST['sale_date'])) {
+    $sale_date = date('Y-m-d H:i:s', strtotime($_POST['sale_date']));
+} else {
+    $sale_date = date('Y-m-d H:i:s'); // যদি ফাঁকা থাকে তবে বর্তমান সময়
+}
 
     // --- নতুন চেক লজিক শুরু (আপনার অনুরোধ অনুযায়ী) ---
     // ডাটাবেজে এই নম্বরের কোনো কাস্টমার আছে কি না দেখা
@@ -60,10 +66,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 // ১. সেলস টেবিলে এন্ট্রি (ডিসকাউন্টসহ)
         $total_item_discount = isset($_POST['p_discounts']) ? array_sum($_POST['p_discounts']) : 0;
 
-        $stmt = $conn->prepare("INSERT INTO sales (godown_id, user_id, customer_name, customer_phone, customer_address, total_amount, discount, payable_amount, paid_amount, due_amount, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())");
-        $stmt->execute([$godown_id, $user_id, $customer_name, $customer_phone, $customer_address, $total_amount, $total_item_discount, $payable_amount, $paid_amount, $due_amount]);
+        $stmt = $conn->prepare("INSERT INTO sales (godown_id, user_id, customer_name, customer_phone, customer_address, total_amount, discount, payable_amount, paid_amount, due_amount, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+        $stmt->execute([$godown_id, $user_id, $customer_name, $customer_phone, $customer_address, $total_amount, $total_item_discount, $payable_amount, $paid_amount, $due_amount, $sale_date]);
         $sale_id = $conn->lastInsertId();
 
+        
        // ২. সেল আইটেম এন্ট্রি ও স্টক আপডেট (ব্যাচ সিস্টেম বা FIFO লজিক)
         // ২. সেল আইটেম এন্ট্রি ও স্টক আপডেট (ব্রাউজারে ১ রো, ডাটাবেজে একাধিক চালানের এন্ট্রি)
         if (isset($_POST['p_ids'])) {

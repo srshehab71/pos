@@ -1,4 +1,7 @@
 <?php
+// ১ বছরের জন্য কুকি সেট করা
+session_set_cookie_params(31536000);
+ini_set('session.gc_maxlifetime', 31536000);
 session_start();
 require_once 'config/db.php';
 

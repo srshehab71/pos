@@ -1,0 +1,3 @@
+# সেশন ও কুকির মেয়াদ ১ বছর (31536000 সেকেন্ড) সেট করা হলো
+php_value session.cookie_lifetime 31536000
+php_value session.gc_maxlifetime 31536000

@@ -1,14 +1,17 @@
+tree /f /a > structure.txt
+
+
 Folder PATH listing for volume XAMPP
 Volume serial number is A8F0-270A
 X:.
-|   folder_structure.txt
+|   .htaccess
 |   index.php
 |   login_process.php
 |   logout.php
 |   payment_required.php
 |   renew_account.php
-|   reset.php
-|   super_reset.php
+|   structure.txt
+|   upload.bat
 |   
 +---admin
 |   |   add_sr.php
@@ -81,6 +84,7 @@ X:.
 |   |   edit_payment.php
 |   |   edit_sale.php
 |   |   get_customer.php
+|   |   get_real_price.php
 |   |   get_transaction_history.php
 |   |   new_sale.php
 |   |   print_invoice.php

@@ -46,8 +46,11 @@ foreach ($items as $item) {
             'price_segments' => []
         ];
     }
-    // নিচে এই লাইনটি অবশ্যই যোগ করবেন (প্রতি আইটেমের ডিসকাউন্ট যোগ হবে)
-    $grouped_items[$key]['discount'] += (float)$item['discount'];
+// ডাটাবেজে discount ০ থাকলেও subtotal দেখে ডিসকাউন্ট বের করার ব্যাকআপ
+    $expected_price = (float)$item['qty'] * (float)$item['unit_price'];
+    if ($grouped_items[$key]['discount'] == 0 && isset($item['subtotal']) && $expected_price > (float)$item['subtotal']) {
+        $grouped_items[$key]['discount'] += ($expected_price - (float)$item['subtotal']);
+    }
     
     // বাকি কোড (qty, price_segments) আগের মতোই থাকবে...
 

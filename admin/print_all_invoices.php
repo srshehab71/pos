@@ -163,7 +163,12 @@ body {
         ];
     }
     // নিচে এই লাইনটি অবশ্যই যোগ করবেন (প্রতি আইটেমের ডিসকাউন্ট যোগ হবে)
-    $grouped_items[$key]['discount'] += (float)$item['discount'];
+    $expected_price = (float)$item['qty'] * (float)$item['unit_price'];
+    $item_discount = (float)$item['discount'];
+    if ($item_discount == 0 && isset($item['subtotal']) && $expected_price > (float)$item['subtotal']) {
+        $item_discount = ($expected_price - (float)$item['subtotal']);
+    }
+    $grouped_items[$key]['discount'] += $item_discount;
     
     // বাকি কোড (qty, price_segments) আগের মতোই থাকবে...
         $grouped_items[$key]['total_qty'] += $item['qty'];
