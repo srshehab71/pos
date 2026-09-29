@@ -36,6 +36,9 @@ if (!empty($start_date) && !empty($end_date)) {
 } elseif ($range == 'today') {
     $where_sql = "DATE(s.created_at) = CURDATE()";
     $label = "আজকের তারিখ: " . date('d/m/Y');
+} elseif ($range == 'yesterday') {
+    $where_sql = "DATE(s.created_at) = DATE_SUB(CURDATE(), INTERVAL 1 DAY)";
+    $label = "গতকাল: " . date('d/m/Y', strtotime('-1 day'));
 } elseif ($range == 'week') {
     $where_sql = "s.created_at >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)";
     $label = date('d/m/Y', strtotime('-7 days')) . " হতে " . date('d/m/Y');
@@ -177,6 +180,7 @@ include 'includes/header.php';
             <!-- ফিল্টার গ্রুপ -->
             <div class="btn-group shadow-sm rounded-pill overflow-hidden bg-white">
                 <a href="?range=today" class="btn btn-sm btn-outline-primary <?= $range == 'today' ? 'active' : '' ?>">আজ</a>
+                <a href="?range=yesterday" class="btn btn-sm btn-outline-primary <?= $range == 'yesterday' ? 'active' : '' ?>">গতকাল</a>
                 <a href="?range=week" class="btn btn-sm btn-outline-primary <?= $range == 'week' ? 'active' : '' ?>">সপ্তাহ</a>
                 <a href="?range=month" class="btn btn-sm btn-outline-primary <?= $range == 'month' ? 'active' : '' ?>">মাস</a>
                 <a href="?range=year" class="btn btn-sm btn-outline-primary <?= $range == 'year' ? 'active' : '' ?>">বছর</a>

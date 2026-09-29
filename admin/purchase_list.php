@@ -63,6 +63,8 @@ if ($supplier_id) {
 // ডেট রেঞ্জ লজিক
 if ($range == 'today') {
     $where_clauses[] = "DATE(p.created_at) = CURDATE()";
+} elseif ($range == 'yesterday') {
+    $where_clauses[] = "DATE(p.created_at) = DATE_SUB(CURDATE(), INTERVAL 1 DAY)";
 } elseif ($range == 'week') {
     $where_clauses[] = "p.created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)";
 } elseif ($range == 'month') {
@@ -146,6 +148,7 @@ include 'includes/header.php';
             <div class="col-md-6 d-flex gap-2 justify-content-end align-items-center">
                 <div class="btn-group shadow-sm rounded-pill overflow-hidden bg-white border">
                     <a href="?range=today" class="btn btn-sm btn-outline-primary <?= $range == 'today' ? 'active' : '' ?>">আজ</a>
+                    <a href="?range=yesterday" class="btn btn-sm btn-outline-primary <?= $range == 'yesterday' ? 'active' : '' ?>">গতকাল</a>
                     <a href="?range=week" class="btn btn-sm btn-outline-primary <?= $range == 'week' ? 'active' : '' ?>">সপ্তাহ</a>
                     <a href="?range=month" class="btn btn-sm btn-outline-primary <?= $range == 'month' ? 'active' : '' ?>">মাস</a>
                     <a href="?range=year" class="btn btn-sm btn-outline-primary <?= $range == 'year' ? 'active' : '' ?>">বছর</a>

@@ -508,9 +508,9 @@ function renderCart() {
                 <input type="hidden" name="p_ids[]" value="${item.id}">
                 <input type="hidden" name="batch_ids[]" value="${item.batch_id}">
             </td>
-            <td>৳ ${item.price.toFixed(2)} <input type="hidden" name="p_prices[]" value="${item.price}"></td>
-            <td>${item.qty} <input type="hidden" name="p_qtys[]" value="${item.qty}"></td>
-            <td class="text-danger">${item.discount.toFixed(2)} <input type="hidden" name="p_discounts[]" value="${item.discount}"></td>
+            <td><input type="number" name="p_prices[]" class="form-control form-control-sm" style="width:90px" value="${item.price.toFixed(2)}" min="0" step="any" onchange="updateCartRow(${index}, null, this.value, null)"></td>
+            <td><input type="number" name="p_qtys[]" class="form-control form-control-sm" style="width:70px" value="${item.qty}" min="0.01" step="any" onchange="updateCartRow(${index}, this.value, null, null)"></td>
+            <td><input type="number" name="p_discounts[]" class="form-control form-control-sm text-danger" style="width:80px" value="${item.discount.toFixed(2)}" min="0" step="any" onchange="updateCartRow(${index}, null, null, this.value)"></td>
             <td class="fw-bold">৳ ${item.subtotal.toFixed(2)}</td>
             <td class="text-center">
                 <button type="button" class="btn btn-sm text-danger" onclick="removeFromCart(${index})">
@@ -523,6 +523,36 @@ function renderCart() {
     document.getElementById('total_amount_hidden').value = total.toFixed(2);
     calculateTotal();
     refreshDropdownStock();
+}
+
+function updateCartRow(index, newQty = null, newPrice = null, newDiscount = null) {
+    let item = cart[index];
+    if (!item) return;
+
+    let qty = newQty === null ? parseFloat(item.qty) : parseFloat(newQty);
+    let price = newPrice === null ? parseFloat(item.price) : parseFloat(newPrice);
+    let discount = newDiscount === null ? parseFloat(item.discount) : parseFloat(newDiscount);
+
+    if (!Number.isFinite(qty) || qty <= 0 || !Number.isFinite(price) || price < 0 || !Number.isFinite(discount) || discount < 0) {
+        alert('মূল্য, পরিমাণ ও ডিসকাউন্টের সঠিক সংখ্যা দিন।');
+        renderCart();
+        return;
+    }
+
+    let option = document.querySelector(`#product_selector option[value="${item.id}"]`);
+    let maxStock = option ? parseFloat(option.getAttribute('data-stock')) : NaN;
+    let otherQty = cart.reduce((sum, cartItem, cartIndex) => cartIndex === index || cartItem.id !== item.id ? sum : sum + parseFloat(cartItem.qty), 0);
+    if (Number.isFinite(maxStock) && qty + otherQty > maxStock) {
+        alert('এই প্রোডাক্টের স্টকের চেয়ে বেশি পরিমাণ দেওয়া যাবে না।');
+        renderCart();
+        return;
+    }
+
+    item.qty = qty;
+    item.price = price;
+    item.discount = discount;
+    item.subtotal = (price * qty) - discount;
+    renderCart();
 }
 
     function removeFromCart(index) {

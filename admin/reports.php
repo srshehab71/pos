@@ -19,6 +19,9 @@ if ($range == '' && $s_inp == '') {
 if ($range === 'today') {
     $start_date = date('Y-m-d');
     $end_date = date('Y-m-d');
+} elseif ($range === 'yesterday') {
+    $start_date = date('Y-m-d', strtotime('-1 day'));
+    $end_date = date('Y-m-d', strtotime('-1 day'));
 } elseif ($range === 'week') {
     $start_date = date('Y-m-d', strtotime('-7 days'));
     $end_date = date('Y-m-d');
@@ -123,6 +126,7 @@ include 'includes/header.php';
                 <div class="col-md-8 d-flex gap-2 justify-content-end align-items-center">
                     <div class="btn-group shadow-sm rounded-pill overflow-hidden bg-white border">
                         <a href="?range=today" class="btn btn-sm btn-outline-primary <?= $range == 'today' ? 'active' : '' ?>">আজ</a>
+                        <a href="?range=yesterday" class="btn btn-sm btn-outline-primary <?= $range == 'yesterday' ? 'active' : '' ?>">গতকাল</a>
                         <a href="?range=week" class="btn btn-sm btn-outline-primary <?= $range == 'week' ? 'active' : '' ?>">সপ্তাহ</a>
                         <a href="?range=month" class="btn btn-sm btn-outline-primary <?= $range == 'month' ? 'active' : '' ?>">মাস</a>
                         <a href="?range=year" class="btn btn-sm btn-outline-primary <?= $range == 'year' ? 'active' : '' ?>">বছর</a>
