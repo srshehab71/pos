@@ -232,6 +232,12 @@ include 'includes/header.php';
                 return (name.indexOf(term) > -1 || sku.indexOf(term) > -1) ? data : null;
             }
         });
+        $('#product_selector').on('select2:open', function() {
+            setTimeout(() => {
+                const searchInput = document.querySelector('.select2-container--open .select2-search__field');
+                if (searchInput) searchInput.focus();
+            }, 0);
+        });
 
         $('#price_input').on('input', function() {
             isPriceEdited = true;
@@ -421,12 +427,8 @@ function refreshDropdownStock() {
         }
     });
     
-    // Select2 কে জানানো যে ডাটা আপডেট হয়েছে
-    $('#product_selector').select2({
-        placeholder: "নাম বা SKU দিয়ে সার্চ করুন",
-        allowClear: true,
-        width: '100%'
-    });
+    // Keep the existing Select2 instance and its SKU matcher intact.
+    $('#product_selector').trigger('change.select2');
 }
 
     function resetInputs() {
